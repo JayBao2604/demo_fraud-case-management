@@ -1,0 +1,6 @@
+MERCHANT_ID,MERCHANT_NAME,COUNTRY,CATEGORY,RISK_LEVEL
+M001,Vinmart,VN,Retail,LOW
+M002,Shopee,VN,Ecommerce,LOW
+M003,Apple Store,SG,Electronic,LOW
+M004,Crypto Exchange,HK,Crypto,HIGH
+M005,Unknown Merchant,NG,Misc,HIGH
