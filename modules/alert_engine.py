@@ -20,7 +20,7 @@ class AlertEngine:
 
         self.rule_engine = RuleEngine()
 
-        self.conn = sqlite3.connect(DB_PATH)
+        self.conn = sqlite3.connect(DB_PATH, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
 
         self.cursor = self.conn.cursor()
@@ -344,18 +344,53 @@ class AlertEngine:
         self.conn.close()
 
 
+# =====================================
+# Test
+# =====================================
 if __name__ == "__main__":
+    import pandas as pd
+    from pprint import pprint
 
     engine = AlertEngine()
 
-    print(engine.generate_alert("TXN005"))
+    print("⏳ Đang quét Database để tạo cảnh báo cho giao dịch vi phạm...")
 
-    print()
+    # Lấy danh sách toàn bộ mã giao dịch
+    # Lưu ý: AlertEngine sử dụng engine.conn theo thiết lập của bạn
+    try:
+        query = "SELECT TXN_ID FROM TRANSACTION"
+        df_txns = pd.read_sql(query, engine.conn)
+        
+        found_alert = False
+        
+        for txn_id in df_txns["TXN_ID"]:
+            result = engine.generate_alert(txn_id)
+            
+            # Nếu tạo thành công một cảnh báo mới (không phải LOW và chưa tồn tại)
+            if result.get("status") and result.get("alert_level") in ["HIGH", "MEDIUM"] and result.get("message") != "Alert already exists.":
+                print(f"\n🚨 Đã tạo cảnh báo mới cho giao dịch: {txn_id}")
+                pprint(result)
+                found_alert = True
+                break  # Dừng ở giao dịch vi phạm đầu tiên tìm thấy
+                
+        if not found_alert:
+            print("\n✅ Không có cảnh báo mới nào được tạo (Có thể tất cả giao dịch đều an toàn hoặc đã được cảnh báo từ trước).")
+            
+    except Exception as e:
+        print(f"\n❌ Lỗi khi quét giao dịch: {e}")
 
-    print(engine.get_alerts())
+    print("\n" + "="*40)
+    print(" DANH SÁCH 5 CẢNH BÁO MỚI NHẤT")
+    print("="*40)
+    alerts_df = engine.get_alerts()
+    if not alerts_df.empty:
+        print(alerts_df.head())
+    else:
+        print("Chưa có cảnh báo nào trong hệ thống.")
 
-    print()
-
-    print(engine.get_statistics())
+    print("\n" + "="*40)
+    print(" THỐNG KÊ CẢNH BÁO")
+    print("="*40)
+    pprint(engine.get_statistics())
 
     engine.close()

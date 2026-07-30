@@ -120,7 +120,7 @@ class DatabaseLoader:
         return self.query("SELECT * FROM TERMINAL")
 
     def load_transaction(self):
-        return self.query("SELECT * FROM TRANSACTION_HISTORY")
+        return self.query("SELECT * FROM [TRANSACTION]")
 
     def load_alert(self):
         return self.query("SELECT * FROM ALERT")
@@ -261,7 +261,7 @@ class DatabaseLoader:
                 F.RISK_SCORE,
                 F.STATUS AS CASE_STATUS
 
-            FROM TRANSACTION_HISTORY T
+            FROM [TRANSACTION] T
 
             LEFT JOIN CUSTOMER C
                 ON T.CUSTOMER_ID=C.CUSTOMER_ID
@@ -317,7 +317,7 @@ class DatabaseLoader:
                 IFNULL(F.STATUS,'-') AS CASE_STATUS,
                 IFNULL(F.RISK_SCORE,'-') AS CASE_RISK_SCORE
 
-            FROM TRANSACTION_HISTORY T
+            FROM [TRANSACTION] T
 
             LEFT JOIN CARD CA
                 ON T.CARD_ID=CA.CARD_ID
@@ -367,7 +367,7 @@ class DatabaseLoader:
                 IFNULL(F.STATUS,'-') AS CASE_STATUS,
                 IFNULL(F.RISK_SCORE,'-') AS CASE_RISK_SCORE
 
-            FROM TRANSACTION_HISTORY T
+            FROM [TRANSACTION] T
 
             LEFT JOIN CUSTOMER C
                 ON T.CUSTOMER_ID=C.CUSTOMER_ID
@@ -413,7 +413,7 @@ class DatabaseLoader:
                 IFNULL(A.STATUS,'-') AS ALERT_STATUS,
                 IFNULL(F.STATUS,'-') AS CASE_STATUS
 
-            FROM TRANSACTION_HISTORY T
+            FROM [TRANSACTION] T
 
             LEFT JOIN CUSTOMER C
                 ON T.CUSTOMER_ID=C.CUSTOMER_ID
@@ -458,7 +458,7 @@ class DatabaseLoader:
                 IFNULL(A.STATUS,'-') AS ALERT_STATUS,
                 IFNULL(F.STATUS,'-') AS CASE_STATUS
 
-            FROM TRANSACTION_HISTORY T
+            FROM [TRANSACTION] T
 
             LEFT JOIN CUSTOMER C
                 ON T.CUSTOMER_ID=C.CUSTOMER_ID
@@ -626,7 +626,7 @@ class DatabaseLoader:
 
             "transaction":
             self.query(
-                "SELECT COUNT(*) TOTAL FROM TRANSACTION_HISTORY"
+                "SELECT COUNT(*) TOTAL FROM [TRANSACTION]"
             ).iloc[0]["TOTAL"],
 
             "alert":
@@ -672,7 +672,7 @@ class DatabaseLoader:
                 F.CASE_ID,
                 F.STATUS AS CASE_STATUS
 
-            FROM TRANSACTION_HISTORY T
+            FROM [TRANSACTION] T
 
             LEFT JOIN CUSTOMER C
                 ON T.CUSTOMER_ID=C.CUSTOMER_ID

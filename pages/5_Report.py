@@ -81,8 +81,23 @@ def load_data():
         cases
     )
 
-
 txn, customer, merchant, alerts, cases = load_data()
+
+# ---------------------------------------------------------
+# FIX: Đảm bảo dữ liệu luôn là DataFrame để tránh lỗi .empty
+# ---------------------------------------------------------
+if not isinstance(alerts, pd.DataFrame):
+    alerts = pd.DataFrame(alerts)
+
+if not isinstance(cases, pd.DataFrame):
+    cases = pd.DataFrame(cases)
+
+if not isinstance(txn, pd.DataFrame):
+    txn = pd.DataFrame(txn)
+
+if not isinstance(customer, pd.DataFrame):
+    customer = pd.DataFrame(customer)
+
 
 st.title("📊 Fraud Lifecycle Report")
 
@@ -92,21 +107,18 @@ st.title("📊 Fraud Lifecycle Report")
 
 st.sidebar.header("Report Filter")
 
-country = st.sidebar.multiselect(
+# Kiểm tra xem có cột COUNTRY không trước khi lọc
+if not txn.empty and "COUNTRY" in txn.columns:
+    country = st.sidebar.multiselect(
+        "Country",
+        sorted(txn["COUNTRY"].dropna().unique()),
+        default=sorted(txn["COUNTRY"].dropna().unique())
+    )
 
-    "Country",
-
-    sorted(txn["COUNTRY"].dropna().unique()),
-
-    default=sorted(txn["COUNTRY"].dropna().unique())
-
-)
-
-if country:
-
-    txn = txn[
-        txn["COUNTRY"].isin(country)
-    ]
+    if country:
+        txn = txn[
+            txn["COUNTRY"].isin(country)
+        ]
 
 # =====================================
 # KPI
@@ -116,22 +128,19 @@ st.subheader("📈 Executive Dashboard")
 
 fraud = pd.DataFrame()
 
-if "FRAUD_LABEL" in txn.columns:
-
+if not txn.empty and "FRAUD_LABEL" in txn.columns:
     fraud = txn[
         txn["FRAUD_LABEL"] == 1
     ]
 
 total_amount = 0
 
-if not txn.empty:
-
+if not txn.empty and "AMOUNT" in txn.columns:
     total_amount = txn["AMOUNT"].sum()
 
 fraud_rate = 0
 
-if len(txn):
-
+if len(txn) > 0:
     fraud_rate = len(fraud) / len(txn) * 100
 
 k1,k2,k3,k4 = st.columns(4)
@@ -174,6 +183,7 @@ k7.metric(
 )
 
 st.divider()
+
 # =====================================
 # Alert Analysis
 # =====================================
@@ -181,23 +191,17 @@ st.divider()
 st.subheader("🚨 Alert Analysis")
 
 if alerts.empty:
-
     st.info("No alert data available.")
-
 else:
-
     col1, col2 = st.columns(2)
 
     with col1:
-
         if "ALERT_LEVEL" in alerts.columns:
-
             alert_level = (
                 alerts["ALERT_LEVEL"]
                 .value_counts()
                 .reset_index()
             )
-
             alert_level.columns = [
                 "Alert Level",
                 "Count"
@@ -217,15 +221,12 @@ else:
             )
 
     with col2:
-
         if "STATUS" in alerts.columns:
-
             alert_status = (
                 alerts["STATUS"]
                 .value_counts()
                 .reset_index()
             )
-
             alert_status.columns = [
                 "Status",
                 "Count"
@@ -252,43 +253,37 @@ st.divider()
 st.subheader("📂 Case Analysis")
 
 if cases.empty:
-
     st.info("No investigation case available.")
-
 else:
-
     col1, col2 = st.columns(2)
 
     with col1:
+        if "STATUS" in cases.columns:
+            case_status = (
+                cases["STATUS"]
+                .value_counts()
+                .reset_index()
+            )
+            case_status.columns = [
+                "Status",
+                "Count"
+            ]
 
-        case_status = (
-            cases["STATUS"]
-            .value_counts()
-            .reset_index()
-        )
+            fig = px.bar(
+                case_status,
+                x="Status",
+                y="Count",
+                color="Status",
+                title="Case Status Distribution"
+            )
 
-        case_status.columns = [
-            "Status",
-            "Count"
-        ]
-
-        fig = px.bar(
-            case_status,
-            x="Status",
-            y="Count",
-            color="Status",
-            title="Case Status Distribution"
-        )
-
-        st.plotly_chart(
-            fig,
-            use_container_width=True
-        )
+            st.plotly_chart(
+                fig,
+                use_container_width=True
+            )
 
     with col2:
-
         if "RISK_SCORE" in cases.columns:
-
             fig = px.histogram(
                 cases,
                 x="RISK_SCORE",
@@ -310,13 +305,9 @@ st.divider()
 st.subheader("🚨 Fraud Transaction List")
 
 if fraud.empty:
-
     st.info("No fraud transaction detected.")
-
 else:
-
     fraud_display = fraud.rename(columns={
-
         "TXN_ID":"Transaction ID",
         "CARD_ID":"Card ID",
         "CUSTOMER_ID":"Customer ID",
@@ -327,19 +318,13 @@ else:
         "COUNTRY":"Country",
         "DEVICE_ID":"Device",
         "FRAUD_LABEL":"Fraud"
-
     })
 
     st.dataframe(
-
         fraud_display,
-
         use_container_width=True,
-
         hide_index=True,
-
         height=350
-
     )
 
 st.divider()
@@ -351,21 +336,13 @@ st.divider()
 st.subheader("🚨 Alert List")
 
 if alerts.empty:
-
     st.info("No alerts.")
-
 else:
-
     st.dataframe(
-
         alerts,
-
         use_container_width=True,
-
         hide_index=True,
-
         height=300
-
     )
 
 st.divider()
@@ -377,24 +354,17 @@ st.divider()
 st.subheader("📂 Investigation Cases")
 
 if cases.empty:
-
     st.info("No cases.")
-
 else:
-
     st.dataframe(
-
         cases,
-
         use_container_width=True,
-
         hide_index=True,
-
         height=300
-
     )
 
 st.divider()
+
 # =====================================
 # Export Report
 # =====================================
@@ -404,61 +374,36 @@ st.subheader("📤 Export Report")
 col1, col2, col3 = st.columns(3)
 
 with col1:
-
-    csv_txn = txn.to_csv(index=False).encode("utf-8")
-
-    st.download_button(
-
-        "⬇ Download Transaction Report",
-
-        data=csv_txn,
-
-        file_name="transaction_report.csv",
-
-        mime="text/csv",
-
-        use_container_width=True
-
-    )
+    if not txn.empty:
+        csv_txn = txn.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            "⬇ Download Transaction Report",
+            data=csv_txn,
+            file_name="transaction_report.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
 
 with col2:
-
     if not alerts.empty:
-
         csv_alert = alerts.to_csv(index=False).encode("utf-8")
-
         st.download_button(
-
             "⬇ Download Alert Report",
-
             data=csv_alert,
-
             file_name="alert_report.csv",
-
             mime="text/csv",
-
             use_container_width=True
-
         )
 
 with col3:
-
     if not cases.empty:
-
         csv_case = cases.to_csv(index=False).encode("utf-8")
-
         st.download_button(
-
             "⬇ Download Case Report",
-
             data=csv_case,
-
             file_name="case_report.csv",
-
             mime="text/csv",
-
             use_container_width=True
-
         )
 
 st.divider()
@@ -470,53 +415,30 @@ st.divider()
 st.subheader("📋 Executive Summary")
 
 summary = pd.DataFrame({
-
     "Metric":[
-
         "Total Transactions",
-
         "Fraud Transactions",
-
         "Fraud Rate (%)",
-
         "Total Customers",
-
         "Total Alerts",
-
         "Total Cases",
-
         "Transaction Amount"
-
     ],
-
     "Value":[
-
         len(txn),
-
         len(fraud),
-
         round(fraud_rate,2),
-
         len(customer),
-
         len(alerts),
-
         len(cases),
-
         f"{total_amount:,.0f} VND"
-
     ]
-
 })
 
 st.dataframe(
-
     summary,
-
     use_container_width=True,
-
     hide_index=True
-
 )
 
 st.divider()
@@ -528,25 +450,16 @@ st.divider()
 col1, col2 = st.columns([1,4])
 
 with col1:
-
     if st.button(
-
         "🔄 Refresh",
-
         use_container_width=True
-
     ):
-
         st.cache_data.clear()
-
         st.rerun()
 
 with col2:
-
     st.info(
-
         "Refresh the report after generating new alerts or investigation cases."
-
     )
 
 st.divider()
@@ -555,16 +468,8 @@ st.divider()
 # Generated Information
 # =====================================
 
-st.caption(
-    "Fraud Lifecycle Management System"
-)
-
-st.caption(
-    "Demo"
-)
-
-st.caption(
-    "Generated by Streamlit Dashboard"
-)
+st.caption("Fraud Lifecycle Management System")
+st.caption("Demo")
+st.caption("Generated by Streamlit Dashboard")
 
 st.success("✅ Report generated successfully.")

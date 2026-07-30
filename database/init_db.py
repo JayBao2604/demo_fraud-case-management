@@ -1,11 +1,13 @@
+import os
 import sqlite3
+
+# Đảm bảo thư mục 'database' đã tồn tại trước khi tạo file .db
+os.makedirs("database", exist_ok=True)
 
 conn = sqlite3.connect("database/banking.db")
 cursor = conn.cursor()
 
-
-# CUSTOMER
-
+# Tạo bảng CUSTOMER
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS CUSTOMER(
     CUSTOMER_ID TEXT PRIMARY KEY,
@@ -18,9 +20,7 @@ CREATE TABLE IF NOT EXISTS CUSTOMER(
 )
 """)
 
-
-# CARD
-
+# Tạo bảng CARD
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS CARD(
     CARD_ID TEXT PRIMARY KEY,
@@ -29,30 +29,22 @@ CREATE TABLE IF NOT EXISTS CARD(
     CARD_TYPE TEXT,
     CREDIT_LIMIT REAL,
     CARD_STATUS TEXT,
-    FOREIGN KEY(CUSTOMER_ID)
-    REFERENCES CUSTOMER(CUSTOMER_ID)
+    FOREIGN KEY(CUSTOMER_ID) REFERENCES CUSTOMER(CUSTOMER_ID)
 )
 """)
 
-# ==========================
-# ACCOUNT
-# ==========================
-
+# Tạo bảng ACCOUNT
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS ACCOUNT(
     ACCOUNT_ID TEXT PRIMARY KEY,
     CUSTOMER_ID TEXT,
     BALANCE REAL,
     ACCOUNT_STATUS TEXT,
-    FOREIGN KEY(CUSTOMER_ID)
-        REFERENCES CUSTOMER(CUSTOMER_ID)
+    FOREIGN KEY(CUSTOMER_ID) REFERENCES CUSTOMER(CUSTOMER_ID)
 )
 """)
 
-# ==========================
-# MERCHANT
-# ==========================
-
+# Tạo bảng MERCHANT
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS MERCHANT(
     MERCHANT_ID TEXT PRIMARY KEY,
@@ -63,49 +55,56 @@ CREATE TABLE IF NOT EXISTS MERCHANT(
 )
 """)
 
-# ==========================
-# TERMINAL
-# ==========================
-
+# Tạo bảng TERMINAL
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS TERMINAL(
     TERMINAL_ID TEXT PRIMARY KEY,
     MERCHANT_ID TEXT,
     TERMINAL_TYPE TEXT,
     CITY TEXT,
-    FOREIGN KEY(MERCHANT_ID)
-        REFERENCES MERCHANT(MERCHANT_ID)
+    FOREIGN KEY(MERCHANT_ID) REFERENCES MERCHANT(MERCHANT_ID)
 )
 """)
 
+# # Tạo bảng TRANSACTION_HISTORY
+# cursor.execute("""
+# CREATE TABLE IF NOT EXISTS TRANSACTION_HISTORY(
+#     TXN_ID TEXT PRIMARY KEY,
+#     CARD_ID TEXT,
+#     CUSTOMER_ID TEXT,
+#     MERCHANT_ID TEXT,
+#     TERMINAL_ID TEXT,
+#     TXN_TIME TEXT,
+#     AMOUNT REAL,
+#     COUNTRY TEXT,
+#     DEVICE_ID TEXT,
+#     FRAUD_LABEL INTEGER,
+#     FOREIGN KEY(CARD_ID) REFERENCES CARD(CARD_ID)
+# )
+# """)
 
-# TRANSACTION
-
-
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS TRANSACTION_HISTORY(
-    TXN_ID TEXT PRIMARY KEY,
-    CARD_ID TEXT,
-    CUSTOMER_ID TEXT,
-    MERCHANT_ID TEXT,
-    TERMINAL_ID TEXT,
-    TXN_TIME TEXT,
-    AMOUNT REAL,
-    COUNTRY TEXT,
-    DEVICE_ID TEXT,
-    FRAUD_LABEL INTEGER,
-    FOREIGN KEY(CARD_ID)
-        REFERENCES CARD(CARD_ID)
-)
-""")
-
-# FRAUD CASE
-
+# Tạo bảng FRAUD_CASE
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS FRAUD_CASE(
     CASE_ID TEXT PRIMARY KEY,
     TXN_ID TEXT,
     RISK_SCORE INTEGER,
+    STATUS TEXT,
+    CREATED_TIME TEXT,
+    FOREIGN KEY(TXN_ID) REFERENCES TRANSACTION_HISTORY(TXN_ID)
+)
+""")
+
+# ==========================
+# ALERT
+# ==========================
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS ALERT(
+    ALERT_ID TEXT PRIMARY KEY,
+    TXN_ID TEXT,
+    CUSTOMER_ID TEXT,
+    ALERT_LEVEL TEXT,
+    RULE_SCORE INTEGER,
     STATUS TEXT,
     CREATED_TIME TEXT,
     FOREIGN KEY(TXN_ID)
@@ -114,6 +113,5 @@ CREATE TABLE IF NOT EXISTS FRAUD_CASE(
 """)
 
 conn.commit()
-
 conn.close()
 print("Database created successfully.")

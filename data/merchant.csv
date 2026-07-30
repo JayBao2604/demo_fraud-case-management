@@ -4,3 +4,28 @@ M002,Shopee,VN,Ecommerce,LOW
 M003,Apple Store,SG,Electronic,LOW
 M004,Crypto Exchange,HK,Crypto,HIGH
 M005,Unknown Merchant,NG,Misc,HIGH
+M006,Lazada,VN,Ecommerce,LOW
+M007,Tiki,VN,Ecommerce,LOW
+M008,AEON Mall,VN,Retail,LOW
+M009,Circle K,VN,Convenience,LOW
+M010,Highlands Coffee,VN,Food & Beverage,LOW
+M011,The Coffee House,VN,Food & Beverage,LOW
+M012,CGV Cinema,VN,Entertainment,LOW
+M013,Grab,VN,Transportation,LOW
+M014,Vietnam Airlines,VN,Travel,LOW
+M015,Booking.com,NL,Travel,MEDIUM
+M016,Amazon,US,Ecommerce,LOW
+M017,eBay,US,Ecommerce,MEDIUM
+M018,Steam,US,Gaming,LOW
+M019,Google Play,US,Digital Service,LOW
+M020,Apple App Store,US,Digital Service,LOW
+M021,Binance,KY,Crypto,HIGH
+M022,Bybit,AE,Crypto,HIGH
+M023,OKX,SC,Crypto,HIGH
+M024,Bitget,SG,Crypto,HIGH
+M025,Casino Online,MT,Gambling,HIGH
+M026,Luxury Watch Store,CH,Luxury,MEDIUM
+M027,Duty Free Shop,SG,Retail,MEDIUM
+M028,Shell,VN,Fuel,LOW
+M029,Pharmacity,VN,Healthcare,LOW
+M030,FPT Shop,VN,Electronic,LOW

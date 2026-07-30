@@ -4,8 +4,8 @@ modules/rule_engine.py
 Fraud Rule Engine
 """
 
+import pandas as pd
 from modules.loader import DatabaseLoader
-
 
 class RuleEngine:
     """
@@ -38,7 +38,6 @@ class RuleEngine:
         """
         Trigger when transaction amount exceeds threshold.
         """
-
         if txn["AMOUNT"] >= self.LARGE_AMOUNT_THRESHOLD:
             return True, 30
 
@@ -52,7 +51,6 @@ class RuleEngine:
         Trigger when transaction originates from
         a high-risk country.
         """
-
         if txn["COUNTRY"] in self.HIGH_RISK_COUNTRIES:
             return True, 25
 
@@ -65,7 +63,6 @@ class RuleEngine:
         """
         Trigger when customer uses a new device.
         """
-
         if txn["DEVICE_ID"] == "NEW_DEVICE":
             return True, 20
 
@@ -78,7 +75,6 @@ class RuleEngine:
         """
         Trigger when merchant is marked HIGH risk.
         """
-
         merchant = self.db.get_merchant(txn["MERCHANT_ID"])
 
         if merchant.empty:
@@ -90,7 +86,8 @@ class RuleEngine:
             return True, 20
 
         return False, 0
-        # =====================================
+
+    # =====================================
     # Rule 5: Night Transaction
     # =====================================
     def night_transaction(self, txn):
@@ -98,9 +95,10 @@ class RuleEngine:
         Trigger when transaction is performed
         during late night hours.
         """
-
         try:
-            hour = int(str(txn["TXN_TIME"])[11:13])
+            # Chuyển đổi an toàn sang định dạng datetime bằng Pandas
+            dt = pd.to_datetime(txn["TXN_TIME"])
+            hour = dt.hour
         except Exception:
             return False, 0
 
@@ -117,17 +115,18 @@ class RuleEngine:
         Trigger when customer has too many
         transactions.
         """
-
-        df = self.db.load_transaction()
-
         customer = txn["CUSTOMER_ID"]
-
-        count = len(
-            df[df["CUSTOMER_ID"] == customer]
-        )
-
-        if count >= 5:
-            return True, 25
+        
+        try:
+            # Truy vấn SQL trực tiếp để đếm số giao dịch thay vì load cả bảng vào RAM
+            query = f"SELECT COUNT(TXN_ID) as count FROM [TRANSACTION] WHERE CUSTOMER_ID = '{customer}'"
+            df_count = pd.read_sql(query, self.db.conn)
+            count = df_count.iloc[0]["count"]
+            
+            if count >= 5:
+                return True, 25
+        except Exception:
+            return False, 0
 
         return False, 0
 
@@ -138,7 +137,6 @@ class RuleEngine:
         """
         Evaluate all fraud rules for one transaction.
         """
-
         txn = self.db.get_transaction(txn_id)
 
         if txn.empty:
@@ -153,54 +151,40 @@ class RuleEngine:
         triggered = []
 
         rules = [
-
             ("Large Amount", self.large_amount),
-
             ("High Risk Country", self.high_risk_country),
-
             ("New Device", self.new_device),
-
             ("High Risk Merchant", self.merchant_rule),
-
             ("Night Transaction", self.night_transaction),
-
             ("Velocity", self.velocity_rule)
-
         ]
 
         for name, func in rules:
-
             hit, value = func(txn)
-
             if hit:
                 triggered.append(name)
                 score += value
 
         if score >= self.BLOCK_THRESHOLD:
             decision = "BLOCK"
-
         elif score >= self.REVIEW_THRESHOLD:
             decision = "REVIEW"
-
         else:
             decision = "PASS"
 
+        # Chuyển list các rule bị vi phạm thành chuỗi để hiển thị đẹp hơn trên Streamlit
+        rules_string = ", ".join(triggered) if triggered else "None"
+
         return {
-
             "status": True,
-
             "transaction_id": txn["TXN_ID"],
-
             "customer_id": txn["CUSTOMER_ID"],
-
             "rule_score": score,
-
-            "triggered_rules": triggered,
-
+            "triggered_rules": rules_string,
             "decision": decision
-
         }
-        # =====================================
+
+    # =====================================
     # Evaluate All
     # =====================================
     def evaluate_all(self, txn_id):
@@ -208,7 +192,6 @@ class RuleEngine:
         Evaluate transaction and return
         overall fraud assessment.
         """
-
         result = self.evaluate(txn_id)
 
         if not result["status"]:
@@ -218,29 +201,19 @@ class RuleEngine:
 
         if score >= self.BLOCK_THRESHOLD:
             risk = "HIGH"
-
         elif score >= self.REVIEW_THRESHOLD:
             risk = "MEDIUM"
-
         else:
             risk = "LOW"
 
         return {
-
             "status": True,
-
             "transaction_id": result["transaction_id"],
-
             "customer_id": result["customer_id"],
-
             "score": score,
-
             "risk": risk,
-
             "decision": result["decision"],
-
             "rules": result["triggered_rules"]
-
         }
 
     # =====================================
@@ -257,13 +230,31 @@ class RuleEngine:
 # Test
 # =====================================
 if __name__ == "__main__":
-
-    engine = RuleEngine()
-
-    result = engine.evaluate_all("TXN005")
-
+    import pandas as pd
     from pprint import pprint
 
-    pprint(result)
-
+    engine = RuleEngine()
+    
+    print("⏳ Đang quét Database để tìm giao dịch vi phạm...")
+    
+    # Lấy danh sách toàn bộ mã giao dịch
+    query = "SELECT TXN_ID FROM TRANSACTION"
+    df_txns = pd.read_sql(query, engine.db.conn)
+    
+    found_alert = False
+    
+    # Quét từng giao dịch
+    for txn_id in df_txns["TXN_ID"]:
+        result = engine.evaluate_all(txn_id)
+        
+        # Nếu giao dịch hợp lệ và có rủi ro (không phải LOW)
+        if result.get("status") and result.get("risk") in ["HIGH", "MEDIUM"]:
+            print(f"\n🚨 Đã tìm thấy giao dịch vi phạm: {txn_id}")
+            pprint(result)
+            found_alert = True
+            break  # Dừng vòng lặp ngay khi tìm thấy 1 case vi phạm
+            
+    if not found_alert:
+        print("\n✅ Không tìm thấy giao dịch nào vi phạm rủi ro trong dữ liệu hiện tại.")
+        
     engine.close()
