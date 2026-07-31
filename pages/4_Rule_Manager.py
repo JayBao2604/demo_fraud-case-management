@@ -16,45 +16,24 @@ st.title("⚙️ Fraud Rule Management")
 
 DEFAULT_RULES = [
     {
-        "Rule ID": "AMOUNT001",
-        "Rule Name": "Large Amount",
-        "Threshold": "10000000",
-        "Score": 30,
+        "Rule ID": "FR001",
+        "Rule Name": "Card Fraud - Fraud Suspicious Account",
+        "Threshold": "Blacklist / HIGH risk / BLOCKED",
+        "Score": 50,
         "Status": "Enabled"
     },
     {
-        "Rule ID": "DEVICE001",
-        "Rule Name": "New Device",
-        "Threshold": "-",
-        "Score": 20,
+        "Rule ID": "FR023",
+        "Rule Name": "Card Fraud - Unusual Payment Channel",
+        "Threshold": "New merchant + 5M VND / 20% limit (3 months)",
+        "Score": 45,
         "Status": "Enabled"
     },
     {
-        "Rule ID": "COUNTRY001",
-        "Rule Name": "High Risk Country",
-        "Threshold": "IR,RU,KP,SY",
-        "Score": 25,
-        "Status": "Enabled"
-    },
-    {
-        "Rule ID": "MERCHANT001",
-        "Rule Name": "High Risk Merchant",
-        "Threshold": "HIGH",
-        "Score": 20,
-        "Status": "Enabled"
-    },
-    {
-        "Rule ID": "VELOCITY001",
-        "Rule Name": "Velocity Rule",
-        "Threshold": "5",
-        "Score": 20,
-        "Status": "Enabled"
-    },
-    {
-        "Rule ID": "TIME001",
-        "Rule Name": "Night Transaction",
-        "Threshold": "23:00-06:00",
-        "Score": 15,
+        "Rule ID": "FR025",
+        "Rule Name": "Card Fraud - Unusual Transaction Alert",
+        "Threshold": "3 txn / 2h + 3M VND + night 23h-6h (no history 6m)",
+        "Score": 40,
         "Status": "Enabled"
     }
 ]
