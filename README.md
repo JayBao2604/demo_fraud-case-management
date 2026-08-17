@@ -204,3 +204,6 @@ It does not represent a production-ready banking fraud detection platform and sh
 ## 10. Author
 
 **Author:**
+
+
+<img width="627" height="940" alt="image" src="https://github.com/user-attachments/assets/748f3f87-d37e-46ad-8720-9159950e40ec" />
