@@ -49,6 +49,18 @@ class CaseManager:
         self.conn.commit()
 
     # =====================================
+    # Update Severity (Risk Score)
+    # =====================================
+
+    def update_severity(self, case_id, risk_score):
+        self.cursor.execute("""
+            UPDATE FRAUD_CASE
+            SET RISK_SCORE=?
+            WHERE CASE_ID=?
+        """, (risk_score, case_id))
+        self.conn.commit()
+
+    # =====================================
     # Check Existing Case
     # =====================================
 

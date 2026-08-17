@@ -51,6 +51,21 @@ def get_alert():
 def get_case():
     return CaseManager()
 
+# ==========================================
+# SECURITY & ACCESS CONTROL
+# ==========================================
+if "logged_in" not in st.session_state or not st.session_state.logged_in:
+    st.warning("🚫 Access Denied. Please log in at the homepage.")
+    st.stop()
+
+def require_role(allowed_roles):
+    if st.session_state.role not in allowed_roles:
+        st.error(f"🚫 Access Denied: Your role '{st.session_state.role}' does not have permission to access this module.")
+        st.stop()
+
+# Chỉ FRAUD và KSV được vào quét giao dịch.
+require_role(["FRAUD", "KSV"])
+
 
 db = get_loader()
 ekyc = get_ekyc()

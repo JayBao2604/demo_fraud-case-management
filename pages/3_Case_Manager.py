@@ -4,6 +4,10 @@ import plotly.express as px
 
 from modules.loader import DatabaseLoader
 from modules.case_manager import CaseManager
+from modules.notifier import Notifier
+
+# Khởi tạo Notifier
+notifier = Notifier()
 
 # =====================================
 # Page Config
@@ -14,6 +18,21 @@ st.set_page_config(
     page_icon="📂",
     layout="wide"
 )
+
+# ==========================================
+# SECURITY & ACCESS CONTROL
+# ==========================================
+if "logged_in" not in st.session_state or not st.session_state.logged_in:
+    st.warning("🚫 Access Denied. Please log in at the homepage.")
+    st.stop()
+
+def require_role(allowed_roles):
+    if st.session_state.role not in allowed_roles:
+        st.error(f"🚫 Access Denied: Your role '{st.session_state.role}' does not have permission to access this module.")
+        st.stop()
+
+# Chỉ cho phép FRAUD và KSV truy cập trang này
+require_role(["FRAUD", "KSV"])
 
 # =====================================
 # Cache Resource
@@ -48,7 +67,6 @@ st.title("📂 Fraud Case Management")
 
 if cases.empty:
     st.info("💡 Hiện tại chưa có ca điều tra (Case) nào. Vui lòng tạo Case từ các giao dịch nghi ngờ để bắt đầu theo dõi.")
-    # Đã bỏ st.stop() để giao diện phía dưới vẫn hiển thị bình thường
 
 # =====================================
 # Sidebar
@@ -106,7 +124,7 @@ st.dataframe(
 st.divider()
 
 # =====================================
-# Select Case & Details (Chỉ hiện khi có dữ liệu)
+# Select Case & Details
 # =====================================
 
 if not filtered.empty and "CASE_ID" in filtered.columns:
@@ -118,6 +136,17 @@ if not filtered.empty and "CASE_ID" in filtered.columns:
 
     selected = filtered[filtered["CASE_ID"]==case_id].iloc[0]
 
+    # Quy đổi RISK_SCORE hiện tại ra Severity Level để hiển thị
+    current_score = int(selected.get("RISK_SCORE", 0))
+    if current_score >= 80:
+        current_sev = "CRITICAL"
+    elif current_score >= 60:
+        current_sev = "HIGH"
+    elif current_score >= 40:
+        current_sev = "MEDIUM"
+    else:
+        current_sev = "LOW"
+
     # =====================================
     # Case Detail
     # =====================================
@@ -128,10 +157,7 @@ if not filtered.empty and "CASE_ID" in filtered.columns:
     with left:
         st.metric("Case ID", selected.get("CASE_ID", "N/A"))
         st.metric("Transaction ID", selected.get("TXN_ID", "N/A"))
-        
-        # Sửa lỗi xung đột RISK_SCORE và PRIORITY
-        risk_display = selected.get("RISK_SCORE", selected.get("PRIORITY", "N/A"))
-        st.metric("Risk Score / Priority", risk_display)
+        st.metric("Risk Score (Severity)", f"{current_score} ({current_sev})")
 
     with right:
         st.metric("Status", selected.get("STATUS", "N/A"))
@@ -185,34 +211,81 @@ if not filtered.empty and "CASE_ID" in filtered.columns:
     st.divider()
 
     # =====================================
-    # Update / Delete Actions
+    # Update / Delete Actions (BẢO VỆ NÚT BẤM)
     # =====================================
     st.subheader("✏️ Manage Case")
     
     current_status = selected.get("STATUS", "OPEN")
     status_options = ["OPEN", "IN_PROGRESS", "CLOSED"]
-    
-    new_status = st.selectbox(
-        "Case Status",
-        status_options,
-        index=status_options.index(current_status) if current_status in status_options else 0
-    )
+    sev_options = ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+
+    c1, c2 = st.columns(2)
+    with c1:
+        new_status = st.selectbox(
+            "Case Status",
+            status_options,
+            index=status_options.index(current_status) if current_status in status_options else 0
+        )
+    with c2:
+        new_sev = st.selectbox(
+            "Severity (Risk Level)",
+            sev_options,
+            index=sev_options.index(current_sev) if current_sev in sev_options else 0
+        )
 
     col1, col2 = st.columns(2)
+    
+    # ----------------------------------------------------
+    # QUYỀN UPDATE STATUS & SEVERITY: Chỉ dành cho KSV
+    # ----------------------------------------------------
     with col1:
-        if st.button("💾 Update Status", use_container_width=True):
-            try:
-                result = case_manager.update_status(case_id, new_status)
-                st.success("Case updated successfully.")
-                st.rerun()
-            except Exception as e:
-                st.error(e)
+        if st.session_state.role == "KSV":
+            if st.button("💾 Update Case", use_container_width=True):
+                try:
+                    # 1. Update Status
+                    case_manager.update_status(case_id, new_status)
+                    
+                    # 2. Update Severity (Quy đổi ngược thành RISK_SCORE)
+                    score_mapping = {"LOW": 20, "MEDIUM": 50, "HIGH": 70, "CRITICAL": 90}
+                    new_score = score_mapping[new_sev]
+                    case_manager.update_severity(case_id, new_score)
 
+                    st.success("Case updated successfully.")
+                    
+                    # ---- KÍCH HOẠT THÔNG BÁO TELEGRAM (GỘP CẢ 2 THAY ĐỔI) ----
+                    if current_status != new_status or current_sev != new_sev:
+                        old_display = f"{current_status} ({current_sev})"
+                        new_display = f"{new_status} ({new_sev})"
+                        
+                        notify_res = notifier.notify_fraud_team(
+                            case_id=case_id, 
+                            old_status=old_display, 
+                            new_status=new_display, 
+                            updater_email=st.session_state.email
+                        )
+                        if notify_res["status"]:
+                            st.toast("Đã gửi cảnh báo Telegram cho team FRAUD!", icon="📲")
+                    # ------------------------------------------------------------
+                    
+                    st.rerun()
+                except Exception as e:
+                    st.error(e)
+        else:
+            st.button("💾 Update Case", disabled=True, use_container_width=True)
+            st.caption("🔒 Chỉ Kiểm Soát Viên (KSV) mới có quyền cập nhật Case.")
+
+    # ----------------------------------------------------
+    # QUYỀN CLOSE CASE: Chỉ dành cho FRAUD
+    # ----------------------------------------------------
     with col2:
-        if st.button("✅ Close Case", use_container_width=True):
-            try:
-                result = case_manager.close_case(case_id)
-                st.success("Case closed successfully.")
-                st.rerun()
-            except Exception as e:
-                st.error(e)
+        if st.session_state.role == "FRAUD":
+            if st.button("✅ Close Case", use_container_width=True):
+                try:
+                    case_manager.close_case(case_id)
+                    st.success("Case closed successfully.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(e)
+        else:
+            st.button("✅ Close Case", disabled=True, use_container_width=True)
+            st.caption("🔒 Chỉ FRAUD mới có quyền đóng Case.")
